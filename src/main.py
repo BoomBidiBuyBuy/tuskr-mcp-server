@@ -1,8 +1,7 @@
 import os
 
-from typing import Annotated, List
+from typing import List
 from fastmcp import FastMCP, settings
-from pydantic import Field
 
 import tuskr_client
 
@@ -50,7 +49,7 @@ def create_test_run(
         test_case_inclusion_type: str,
         test_cases: List[str] = None,
         description: str = '',
-        deadlinee: str = '',
+        deadline: str = '',
         assigned_to: str = ''
     ):
     """
@@ -75,7 +74,7 @@ def create_test_run(
                 "testCases": test_cases,
                 "description": description,
                 "deadline": deadline,
-                "assignedTo": assignedTo
+                "assignedTo": assigned_to
             },
             tuskr_client.ReuqestMethod.POST
         )
