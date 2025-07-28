@@ -1,5 +1,5 @@
 import os
-import pytest 
+import pytest
 import requests
 
 import src.tuskr_client as tuskr_client
@@ -8,12 +8,7 @@ from urllib.parse import urljoin
 
 
 class TestSend:
- 
-    @pytest.fixture(params=[
-            ("http://test-url", "abcdef"),
-            (None, "xxx")
-        ]
-    )
+    @pytest.fixture(params=[("http://test-url", "abcdef"), (None, "xxx")])
     def mock_envs(self, monkeypatch, request):
         base_url, access_token = request.param
 
@@ -23,13 +18,9 @@ class TestSend:
         monkeypatch.setenv("TUSKR_ACCESS_TOKEN", access_token)
 
         expected_base_url = os.environ.get(
-                "TUSKR_BASE_URL",
-                tuskr_client.TUSKR_BASE_URL
-            )
-        expected_base_url = urljoin(
-            expected_base_url,
-            os.environ['TUSKR_ACCOUNT_ID']
+            "TUSKR_BASE_URL", tuskr_client.TUSKR_BASE_URL
         )
+        expected_base_url = urljoin(expected_base_url, os.environ["TUSKR_ACCOUNT_ID"])
 
         yield expected_base_url, os.environ.get("TUSKR_ACCESS_TOKEN")
 
@@ -44,16 +35,14 @@ class TestSend:
         mocker.patch("requests.post", return_value=mock_response)
 
         result = tuskr_client.send(
-            "create_report",
-            "some body",
-            tuskr_client.RequestMethod.POST
+            "create_report", "some body", tuskr_client.RequestMethod.POST
         )
 
         assert result == "executed"
         requests.post.assert_called_once_with(
             f"{expected_base_url}/create_report",
             headers={"Authorization": f"Bearer {access_token}"},
-            data="some body"
+            data="some body",
         )
 
     def test_get(self, mocker, mock_envs):
@@ -67,14 +56,12 @@ class TestSend:
         mocker.patch("requests.get", return_value=mock_response)
 
         result = tuskr_client.send(
-            "create_report",
-            "some body",
-            tuskr_client.RequestMethod.GET
+            "create_report", "some body", tuskr_client.RequestMethod.GET
         )
 
         assert result == "executed"
         requests.get.assert_called_once_with(
             f"{expected_base_url}/create_report",
             headers={"Authorization": f"Bearer {access_token}"},
-            params="some body"
+            params="some body",
         )
