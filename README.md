@@ -1,14 +1,59 @@
-#
+# tuskr-mcp-server
 
-Implements MCP server for the Tuskr REST API
+Implements Model Conext Protocol (MCP) server for the Tuskr REST API
 
 https://tuskr.app/kb/latest/api
 
 
-##
+## Install
 
-To set up dev environment
+### Env variables / .env file
+
+Setup environment variables or configure the `.env` file from the `.env.example`
+
+It support the following environment variables
+
+```
+TUSKR_ACCOUNT_ID=<your account id>
+TUSKR_ACCESS_TOKEN=<your access token>
+```
+(this doc desc https://tuskr.app/kb/latest/api)
+
+and optionally 
+```
+MCP_PORT=<port you want to run MCP>
+MCP_HOST=0.0.0.0
+```
+
+## Development
+
+### Setup
+
+1. Clone repo
+2. Install development dependencies:
 `uv sync --dev`
+3. Create `.env` from `.env.example`
 
-to run tests
-`uv run pytest -vsx`
+### Running tests
+
+The project uses pytest for testing. The following command will run all tests
+
+```
+uv run pytest -vsx
+```
+
+### Running linters
+
+The project uses the `ruff` tool as a linter.
+
+The following command allows to run linter
+
+```
+uv run ruff check
+```
+
+and this command allow to fix formatting
+
+```
+uv run ruff format
+```
