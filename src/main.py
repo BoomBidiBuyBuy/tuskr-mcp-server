@@ -1,8 +1,7 @@
 import os
 
-from typing import Annotated, List
+from typing import List
 from fastmcp import FastMCP, settings
-from pydantic import Field
 
 import tuskr_client
 
@@ -10,16 +9,12 @@ import tuskr_client
 mcp = FastMCP(
     name="Tuskr MCP Service",
     host=os.environ.get("MCP_HOST", settings.host),
-    port=os.environ.get("MCP_PORT", settings.port)
+    port=os.environ.get("MCP_PORT", settings.port),
 )
 
 
 @mcp.tool()
-def list_projects(
-        filter_name: str = None,
-        filter_status: str = None,
-        page: int = 1
-    ):
+def list_projects(filter_name: str = None, filter_status: str = None, page: int = 1):
     """
     Retrives list of projects based on various filter criteria.
 
@@ -34,25 +29,20 @@ def list_projects(
     if filter_status:
         params["filter[status]"] = filter_status
     return tuskr_client.send(
-            "project",
-            {
-                "page": page,
-                **params
-            },
-            tuskr_client.RequestMethod.GET
-        )
+        "project", {"page": page, **params}, tuskr_client.RequestMethod.GET
+    )
 
 
 @mcp.tool()
 def create_test_run(
-        name: str,
-        project: str,
-        test_case_inclusion_type: str,
-        test_cases: List[str] = None,
-        description: str = '',
-        deadlinee: str = '',
-        assigned_to: str = ''
-    ):
+    name: str,
+    project: str,
+    test_case_inclusion_type: str,
+    test_cases: List[str] = None,
+    description: str = "",
+    deadline: str = "",
+    assigned_to: str = "",
+):
     """
     Creates a new test run in a project.
 
@@ -67,18 +57,18 @@ def create_test_run(
         assigned_to: ID, name, or email of the user. If specified, the test run will be assigned to this user
     """
     return tuskr_client.send(
-            "test-run",
-            {
-                "name": name,
-                "project": project,
-                "testCaseInclusionType": test_case_inclusion_type,
-                "testCases": test_cases,
-                "description": description,
-                "deadline": deadline,
-                "assignedTo": assignedTo
-            },
-            tuskr_client.ReuqestMethod.POST
-        )
+        "test-run",
+        {
+            "name": name,
+            "project": project,
+            "testCaseInclusionType": test_case_inclusion_type,
+            "testCases": test_cases,
+            "description": description,
+            "deadline": deadline,
+            "assignedTo": assigned_to,
+        },
+        tuskr_client.ReuqestMethod.POST,
+    )
 
 
 def main():
