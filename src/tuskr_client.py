@@ -16,7 +16,12 @@ class RequestMethod(StrEnum):
 TUSKR_BASE_URL = "https://api.tuskr.live/api/tenant/"
 
 
-def send(action: str, body, method: RequestMethod):
+def send(
+    action: str,
+    body: str,
+    method: RequestMethod
+):
+    """Sends a request to the Tuskr endpoint """
 
     url = urljoin(
             os.environ.get("TUSKR_BASE_URL", TUSKR_BASE_URL),
