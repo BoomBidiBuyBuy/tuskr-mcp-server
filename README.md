@@ -34,6 +34,12 @@ MCP_HOST=0.0.0.0
 `uv sync --dev`
 3. Create `.env` from `.env.example`
 
+### Running MCP service
+
+```
+uv run src/main
+```
+
 ### Running tests
 
 The project uses pytest for testing. The following command will run all tests
