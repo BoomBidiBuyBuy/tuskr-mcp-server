@@ -8,8 +8,6 @@ import tuskr_client
 
 mcp = FastMCP(
     name="Tuskr MCP Service",
-    host=os.environ.get("MCP_HOST", settings.host),
-    port=os.environ.get("MCP_PORT", settings.port),
 )
 
 
@@ -72,7 +70,11 @@ def create_test_run(
 
 
 def main():
-    mcp.run(transport="http")
+    mcp.run(
+        transport="http",
+        host=os.environ.get("MCP_HOST", settings.host),
+        port=int(os.environ.get("MCP_PORT", settings.port)),
+    )
 
 
 if __name__ == "__main__":
