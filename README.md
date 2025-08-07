@@ -37,7 +37,7 @@ MCP_HOST=0.0.0.0
 ### Running MCP service
 
 ```
-uv run src/main
+uv run --env-file .env src/main
 ```
 
 ### Running tests
@@ -62,4 +62,16 @@ and this command allow to fix formatting
 
 ```
 uv run ruff format
+```
+
+### Dockerization
+
+The following command allows to build a docker image
+```
+docker build -t tuskr-mcp .
+```
+
+and then you can run it using the
+```
+docker run -it tuskr-mcp
 ```
