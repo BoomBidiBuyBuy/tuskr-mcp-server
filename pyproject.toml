@@ -2,12 +2,17 @@
 name = "tuskr-mcp-server"
 version = "0.1.0"
 description = "Add your description here"
+authors = [
+    { name = "Ruslan Galinskii", email = "galinskyifmo@gmail.com" }
+]
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=2.10.4",
     "requests>=2.32.4",
 ]
+keywords = ["mcp", "tuskr", "model-context-protocol"]
 
 [tool.uv]
 dev-dependencies = [
@@ -15,3 +20,11 @@ dev-dependencies = [
     "pytest-mock>=3.14.1",
     "ruff>=0.12.5",
 ]
+
+[project.urls]
+Homepage = "https://github.com/BoomBidiBuyBuy/tuskr-mcp-server"
+Repository = "https://github.com/BoomBidiBuyBuy/tuskr-mcp-server.git"
+"Bug Tracker" = "https://github.com/BoomBidiBuyBuy/tuskr-mcp-server/issues"
+
+[project.scripts]
+mcp-server-apache-airflow = "src.main:main
