@@ -27,4 +27,4 @@ Repository = "https://github.com/BoomBidiBuyBuy/tuskr-mcp-server.git"
 "Bug Tracker" = "https://github.com/BoomBidiBuyBuy/tuskr-mcp-server/issues"
 
 [project.scripts]
-mcp-server-apache-airflow = "src.main:main
+mcp-server-apache-airflow = "src.main:main"
