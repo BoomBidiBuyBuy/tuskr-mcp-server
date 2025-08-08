@@ -1,9 +1,11 @@
 # tuskr-mcp-server
 
-Implements Model Conext Protocol (MCP) server for the Tuskr REST API
+Implements Model Conext Protocol (MCP) HTTP server for the Tuskr REST API
 
 https://tuskr.app/kb/latest/api
 
+It's built on the FastMCP python SDK.
+It support access token authenticaion.
 
 ## Install
 
@@ -24,6 +26,31 @@ and optionally
 MCP_PORT=<port you want to run MCP>
 MCP_HOST=0.0.0.0
 ```
+
+## Connect from client
+
+Use the following template to connect the server
+
+```
+{
+  "mcpServers": {
+    "tuskr": {
+      "transport": "http",
+      "url": "http://<your-mcp-dns-or-ip>/mcp/",
+      "headers": {
+        "Authorization": "Bearer <your access token>",
+        "Account-ID": "<your-tuskr-account-id>"
+      }
+    }
+  }
+}
+```
+
+
+The `Authorization` is mandatory.
+
+The `Account-ID` is not required and can be set on the server side using the `TUSKR_ACCOUNT_ID` env variable. It's convenient in case you have single MCP Server for organization.
+
 
 ## Development
 
