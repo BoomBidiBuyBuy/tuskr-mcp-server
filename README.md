@@ -62,7 +62,7 @@ The `Account-ID` is not required and can be set on the server side using the `TU
 ### Running MCP service
 
 ```
-uv run --env-file .env src/main
+uv run --env-file .env src/main.py
 ```
 
 ### Running tests
