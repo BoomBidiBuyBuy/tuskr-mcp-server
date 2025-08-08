@@ -1,21 +1,21 @@
 # tuskr-mcp-server
 
-Implements Model Conext Protocol (MCP) HTTP server for the Tuskr REST API
+Implements a Model Context Protocol (MCP) HTTP server for the Tuskr REST API.
 
 https://tuskr.app/kb/latest/api
 
-It's built on the FastMCP python SDK.
-It support access token authenticaion.
+Built on the FastMCP Python SDK.  
+Supports access token authentication.
 
-## Install
+## Installation
 
-### Env variables / .env file
+### Environment variables / `.env` file
 
-Setup environment variables or configure the `.env` file from the `.env.example`
+Set up environment variables or configure the `.env` file using the `.env.example` template.
 
-It support the following environment variables
+The following environment variables are supported:
 
-```
+``
 TUSKR_ACCOUNT_ID=<your account id>
 TUSKR_ACCESS_TOKEN=<your access token>
 ```
