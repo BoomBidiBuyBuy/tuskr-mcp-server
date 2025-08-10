@@ -183,6 +183,12 @@ def create_test_run(
     )
 
 
+@mcp.resource("resource://service_description")
+def service_description():
+    return """This MCP service provides tools to manage projects, test cases, tests suits
+    test runs and other resources in Tuskr"""
+
+
 def main():
     mcp.run(
         transport="http",
