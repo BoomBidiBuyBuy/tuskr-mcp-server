@@ -1,8 +1,9 @@
 import logging
 import os
+import click
 
 from typing import List
-from fastmcp import FastMCP, Context, settings
+from fastmcp import FastMCP, Context
 
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 
@@ -189,11 +190,19 @@ def service_description():
     test runs and other resources in Tuskr"""
 
 
-def main():
+@click.command()
+@click.option("--transport", type=str, default=os.environ.get("MCP_TRANSPORT", "http"))
+@click.option("--host", type=str, default=os.environ.get("MCP_HOST", "0.0.0.0"))
+@click.option("--port", type=int, default=os.environ.get("MCP_PORT", 8000))
+def main(transport, host, port):
+    run_params = {}
+    if transport == "http":
+        run_params["host"] = host
+        run_params["port"] = port
+
     mcp.run(
-        transport="http",
-        host=os.environ.get("MCP_HOST", settings.host),
-        port=int(os.environ.get("MCP_PORT", settings.port)),
+        transport=transport,
+        **run_params,
     )
 
 

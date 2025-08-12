@@ -1,6 +1,6 @@
 # tuskr-mcp-server
 
-Implements a Model Context Protocol (MCP) HTTP server for the [Tuskr REST API](https://tuskr.app/kb/latest/api)
+Implements a Model Context Protocol (MCP) server for the [Tuskr REST API](https://tuskr.app/kb/latest/api)
 
 Built on the FastMCP Python SDK.  
 Supports access token authentication.
@@ -21,13 +21,32 @@ TUSKR_ACCESS_TOKEN=<your access token>
 
 and optionally 
 ```
-MCP_PORT=<port you want to run MCP>
-MCP_HOST=0.0.0.0
+MCP_TRANSPORT=<transport type: http or stdio>
+MCP_HOST=<host for HTTP transport>
+MCP_PORT=<port for HTTP transport>
 ```
+
+## Command Line Parameters
+
+The MCP server supports the following command line parameters:
+
+- `--transport`: Transport type for the MCP server. Options: `http` (default) or `stdio`
+- `--host`: Host address for HTTP transport (default: `0.0.0.0`)
+- `--port`: Port number for HTTP transport (default: `8000`)
+
+**Note**: The `--host` and `--port` parameters are only applicable when using the `http` transport.
+
+### Default Values
+
+- **Transport**: `http` (can be overridden with `MCP_TRANSPORT` environment variable)
+- **Host**: `0.0.0.0` (can be overridden with `MCP_HOST` environment variable)
+- **Port**: `8000` (can be overridden with `MCP_PORT` environment variable)
 
 ## Connect from client
 
-Use the following template to connect the server
+### HTTP Transport (Default)
+
+Use the following template to connect the server via HTTP:
 
 ```
 {
@@ -44,11 +63,46 @@ Use the following template to connect the server
 }
 ```
 
-
 The `Authorization` is mandatory.
 
 The `Account-ID` is not required and can be set on the server side using the `TUSKR_ACCOUNT_ID` env variable. It's convenient in case you have single MCP Server for organization.
 
+### stdio Transport (for local development)
+
+For local development and integration with tools like `uvx`, use the `stdio` transport:
+
+```
+{
+  "mcpServers": {
+    "tuskr": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["tuskr-mcp-server", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+or use `uv` with source code:
+
+```
+{
+  "mcpServers": {
+    "tuskr": {
+      "transport": "stdio",
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/your/tuskr-mcp-server",
+        "run",
+        "src/main.py",
+        "--transport",
+        "stdio"
+      ]
+    }
+  }
+}
+```
 
 ## Development
 
@@ -61,8 +115,19 @@ The `Account-ID` is not required and can be set on the server side using the `TU
 
 ### Running MCP service
 
+#### HTTP Transport (Default)
 ```
 uv run --env-file .env src/main.py
+```
+
+#### stdio Transport (for local development)
+```
+uv run --env-file .env src/main.py --transport stdio
+```
+
+#### Custom Host/Port
+```
+uv run --env-file .env src/main.py --host 127.0.0.1 --port 9000
 ```
 
 ### Running tests
