@@ -19,6 +19,7 @@ Every tool wraps a single Tuskr REST endpoint, relative to
 | `copy_test_run` | `POST` | `test-run/copy` | Copies an existing run and its case selection within the same project. Results are not carried over; every case starts untested. |
 | `add_test_run_results` | `POST` | `test-run-result/bulk` | Records one status against one or many cases in a run. Prefer a single call with a list of cases over repeated single calls. |
 | `get_test_run_results` | `GET` | `test-run/<id>/results` | Fetches the cases in a run with their latest result, filterable by status. Pass `status='FAILED'` for a confirmation-test worklist. |
+| `get_test_run_details` | `GET` | `test-run/<id>/details` | Fetches a run's metadata plus `firstResultAt`, `lastResultAt` and `durationInMinutes`. Takes the run's ID, not its key. The timestamps are null until a result is recorded, and Tuskr may leave them null for results recorded before it added the endpoint, so a null means unknown, not that the run has no results. |
 | `set_test_run_lock` | `POST` | `test-run/set-lock` | Locks a run read-only, or unlocks it. One run per call. |
 | `archive_test_runs` | `POST` | `test-run/archive` | Archives one or more runs by ID. The response is a bare boolean, so confirm the new state with `list_test_runs(filter_status='archived')`. Unarchiving is not exposed by the API and has to be done in the Tuskr UI. |
 
