@@ -17,7 +17,7 @@ Every tool wraps a single Tuskr REST endpoint, relative to
 | `list_test_runs` | `GET` | `test-run` | Lists a project's test runs, filterable by name, key, status and assignee. `filter_incomplete=True` walks every page and returns only runs below 100% done. |
 | `create_test_run` | `POST` | `test-run` | Creates a test run containing all cases in the project or a named subset. |
 | `copy_test_run` | `POST` | `test-run/copy` | Copies an existing run and its case selection within the same project. Results are not carried over; every case starts untested. |
-| `add_test_run_results` | `POST` | `test-run-result/bulk` | Records one status against one or many cases in a run. Prefer a single call with a list of cases over repeated single calls. |
+| `add_test_run_results` | `POST` | `test-run-result/bulk` | Records one status against one or many cases in a run, optionally with up to two file attachments (see [Attachments](#attachments)). Prefer a single call with a list of cases over repeated single calls. |
 | `get_test_run_results` | `GET` | `test-run/<id>/results` | Fetches the cases in a run with their latest result, filterable by status. Pass `status='FAILED'` for a confirmation-test worklist. |
 | `get_test_run_details` | `GET` | `test-run/<id>/details` | Fetches a run's metadata plus `firstResultAt`, `lastResultAt` and `durationInMinutes`. Takes the run's ID, not its key. The timestamps are null until a result is recorded, and Tuskr may leave them null for results recorded before it added the endpoint, so a null means unknown, not that the run has no results. |
 | `set_test_run_lock` | `POST` | `test-run/set-lock` | Locks a run read-only, or unlocks it. One run per call. |
@@ -26,8 +26,30 @@ Every tool wraps a single Tuskr REST endpoint, relative to
 Result status keys such as `PASSED` and `FAILED` are configured per tenant, so use
 the keys defined in your own account.
 
+`add_test_run_results` matches a test run given by key or name across the whole
+tenant, not within one project. When several projects have a run with the same key,
+for example `R-1`, Tuskr rejects the call with `Multiple test runs found matching:
+R-1` and records nothing. Pass the run's UUID instead; `list_test_runs` returns it
+for a given project.
+
 Tuskr rate-limits every plan at 10 requests/second. The bulk tools exist for that
 reason: batch where the endpoint allows it.
+
+### Attachments
+
+`add_test_run_results` accepts an `attachments` list of local file paths, for
+screenshots and logs. Tuskr allows two files of 5 MB each per call and attaches
+every file to the result record of every test case in that call, so record cases
+that need different evidence in separate calls. Both limits are checked before
+the request is sent.
+
+Attachments are off by default. The tool arguments are chosen by the model, so a
+plain path would let a prompt injection upload any file the server can read.
+Set `TUSKR_ATTACHMENT_DIR` to the one directory the server may read from. Relative
+paths resolve against it, and anything that resolves outside it, including through
+a symlink, is rejected. Because the server reads the files itself, this only works
+when the server runs on the machine that holds them (stdio, or an HTTP instance
+with the directory mounted).
 
 The server also exposes one resource, `resource://service_description`, which
 describes its purpose to the client.
@@ -51,6 +73,7 @@ and optionally
 MCP_TRANSPORT=<transport type: http or stdio>
 MCP_HOST=<host for HTTP transport>
 MCP_PORT=<port for HTTP transport>
+TUSKR_ATTACHMENT_DIR=<directory attachments may be read from>
 ```
 
 ## Command Line Parameters
