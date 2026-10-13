@@ -14,6 +14,7 @@ Every tool wraps a single Tuskr REST endpoint, relative to
 | --- | --- | --- | --- |
 | `list_projects` | `GET` | `project` | Lists projects, filterable by name and by status (`active` / `archived`). |
 | `list_test_cases` | `GET` | `test-case` | Lists a project's test cases, filterable by test suite, section, key, name and custom fields. Use it to discover the case keys a project actually contains before recording results. |
+| `list_test_suites` | `GET` | `test-suite` | Lists a project's test suites, each with its embedded sections, filterable by name. Use it to find the suite and section IDs that `list_test_cases` filters on. |
 | `list_test_runs` | `GET` | `test-run` | Lists a project's test runs, filterable by name, key, status and assignee. `filter_incomplete=True` walks every page and returns only runs below 100% done. |
 | `create_test_run` | `POST` | `test-run` | Creates a test run containing all cases in the project or a named subset. |
 | `copy_test_run` | `POST` | `test-run/copy` | Copies an existing run and its case selection within the same project. Results are not carried over; every case starts untested. |
