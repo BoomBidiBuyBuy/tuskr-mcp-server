@@ -151,3 +151,68 @@ class TestAddTestRunResultsCredentials:
         )
 
         assert send.call_args[1]["ext_tenant_id"] == "tenant-legacy"
+
+
+class TestAddTestRunResultsAttachments:
+    """Attachments ride along as `files`; everything else stays unchanged."""
+
+    @pytest.fixture
+    def attach_dir(self, tmp_path, monkeypatch):
+        root = tmp_path / "attachments"
+        root.mkdir()
+        monkeypatch.setenv("TUSKR_ATTACHMENT_DIR", str(root))
+        return root
+
+    def test_files_are_forwarded_to_send(self, env, send, attach_dir):
+        (attach_dir / "log.txt").write_bytes(b"boom")
+
+        _add_result(
+            FakeContext(),
+            test_run="Alpha 3",
+            status="FAILED",
+            test_cases=["C-1", "C-2"],
+            attachments=["log.txt"],
+        )
+
+        assert send.call_args[1]["files"] == [("log.txt", b"boom", "text/plain")]
+        # The JSON body is unaffected: attachments never enter it.
+        assert set(send.call_args[0][1]) == {"testRun", "status", "testCases"}
+
+    def test_no_files_keyword_without_attachments(self, env, send):
+        """The plain call must not grow a `files` kwarg, even for an empty list."""
+        _add_result(
+            FakeContext(),
+            test_run="Alpha 3",
+            status="PASSED",
+            test_cases="C-1",
+            attachments=[],
+        )
+
+        assert "files" not in send.call_args[1]
+
+    def test_invalid_attachment_sends_nothing(self, env, send, attach_dir):
+        """A bad file fails the whole call before any request is made."""
+        with pytest.raises(ValueError, match="not an existing file"):
+            _add_result(
+                FakeContext(),
+                test_run="Alpha 3",
+                status="PASSED",
+                test_cases="C-1",
+                attachments=["missing.png"],
+            )
+
+        send.assert_not_called()
+
+    def test_attachments_disabled_without_attachment_dir(self, env, send, monkeypatch):
+        monkeypatch.delenv("TUSKR_ATTACHMENT_DIR", raising=False)
+
+        with pytest.raises(ValueError, match="Attachments are disabled"):
+            _add_result(
+                FakeContext(),
+                test_run="Alpha 3",
+                status="PASSED",
+                test_cases="C-1",
+                attachments=["log.txt"],
+            )
+
+        send.assert_not_called()
