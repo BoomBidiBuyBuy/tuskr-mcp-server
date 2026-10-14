@@ -1,3 +1,4 @@
+import json
 import os
 import warnings
 from enum import StrEnum
@@ -54,8 +55,17 @@ def send(
     ext_access_token: str | None = None,
     *,
     ext_account_id: str | None = None,  # deprecated alias; remove in next major version
+    files: list[tuple[str, bytes, str]] | None = None,
 ):
-    """Sends a request to the Tuskr endpoint"""
+    """Sends a request to the Tuskr endpoint.
+
+    `files` is a list of (filename, content, mimetype) tuples and is only valid
+    for POST. When present the request goes out as multipart/form-data instead
+    of JSON.
+    """
+
+    if files and method != RequestMethod.POST:
+        raise ValueError("Attachments can only be sent with a POST request.")
 
     if ext_account_id is not None and ext_tenant_id is None:
         warnings.warn(
@@ -83,7 +93,17 @@ def send(
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
-    if method == RequestMethod.POST:
+    if files:
+        # Attachments use a multipart POST: the same {"data": ...} JSON goes in
+        # a `body` form field and each file in an `attachment` field. Leave
+        # Content-Type unset so requests generates the multipart boundary.
+        response = requests.post(
+            url,
+            headers=headers,
+            data={"body": json.dumps({"data": body})},
+            files=[("attachment", file) for file in files],
+        )
+    elif method == RequestMethod.POST:
         # Tuskr's REST API expects POST bodies as JSON wrapped in a top-level
         # "data" key (see https://tuskr.app/kb/latest/api). Setting the
         # Content-Type header and using requests' json= keyword handles both.

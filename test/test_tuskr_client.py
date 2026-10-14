@@ -71,6 +71,62 @@ class TestSend:
         )
 
 
+class TestSendMultipart:
+    """Cover the attachment path of send()."""
+
+    @pytest.fixture(autouse=True)
+    def _env(self, monkeypatch):
+        monkeypatch.delenv("TUSKR_ACCOUNT_ID", raising=False)
+        monkeypatch.delenv("TUSKR_BASE_URL", raising=False)
+        monkeypatch.setenv("TUSKR_TENANT_ID", "12345")
+        monkeypatch.setenv("TUSKR_ACCESS_TOKEN", "abcdef")
+
+    def test_files_go_out_as_multipart(self, mocker):
+        mock_response = mocker.Mock()
+        mock_response.text = "executed"
+        mocker.patch("requests.post", return_value=mock_response)
+        files = [
+            ("a.png", b"png-bytes", "image/png"),
+            ("b.txt", b"log", "text/plain"),
+        ]
+
+        result = tuskr_client.send(
+            "test-run-result/bulk",
+            {"status": "FAILED"},
+            tuskr_client.RequestMethod.POST,
+            files=files,
+        )
+
+        assert result == "executed"
+        expected_url = urljoin(tuskr_client.TUSKR_BASE_URL, "12345")
+        requests.post.assert_called_once_with(
+            f"{expected_url}/test-run-result/bulk",
+            # No Content-Type: requests must generate the multipart boundary.
+            headers={"Authorization": "Bearer abcdef"},
+            data={"body": '{"data": {"status": "FAILED"}}'},
+            files=[("attachment", files[0]), ("attachment", files[1])],
+        )
+
+    def test_empty_files_list_uses_the_json_path(self, mocker):
+        mock_response = mocker.Mock()
+        mock_response.text = "ok"
+        mocker.patch("requests.post", return_value=mock_response)
+
+        tuskr_client.send("action", {"a": 1}, tuskr_client.RequestMethod.POST, files=[])
+
+        assert requests.post.call_args[1]["json"] == {"data": {"a": 1}}
+        assert "files" not in requests.post.call_args[1]
+
+    def test_files_with_get_raise(self):
+        with pytest.raises(ValueError, match="only be sent with a POST"):
+            tuskr_client.send(
+                "action",
+                {},
+                tuskr_client.RequestMethod.GET,
+                files=[("a.txt", b"x", "text/plain")],
+            )
+
+
 class TestTenantIdResolution:
     """Cover TUSKR_TENANT_ID / TUSKR_ACCOUNT_ID precedence and deprecation."""
 
