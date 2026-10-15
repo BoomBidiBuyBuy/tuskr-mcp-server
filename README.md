@@ -13,7 +13,7 @@ Every tool wraps a single Tuskr REST endpoint, relative to
 | Tool | Method | Endpoint | Purpose |
 | --- | --- | --- | --- |
 | `list_projects` | `GET` | `project` | Lists projects, filterable by name and by status (`active` / `archived`). |
-| `list_test_cases` | `GET` | `test-case` | Lists a project's test cases, filterable by test suite, section, key, name and custom fields. Use it to discover the case keys a project actually contains before recording results. |
+| `list_test_cases` | `GET` | `test-case` | Lists a project's test cases, filterable by test suite, section, key, name, test case type and custom fields. Use it to discover the case keys a project actually contains before recording results. |
 | `list_test_suites` | `GET` | `test-suite` | Lists a project's test suites, each with its embedded sections, filterable by name. Use it to find the suite and section IDs that `list_test_cases` filters on. |
 | `list_test_runs` | `GET` | `test-run` | Lists a project's test runs, filterable by name, key, status and assignee. `filter_incomplete=True` walks every page and returns only runs below 100% done. |
 | `add_test_case` | `POST` | `test-case` | Creates a test case in an existing suite and section. Custom-field keys and value shapes are tenant specific. The API has no delete endpoint for test cases, so try it on a sandbox project. |

@@ -44,6 +44,27 @@ class TestListTestCases:
         assert params["filter[key]"] == "C-2"
         assert params["filter[name]"] == "pagination"
 
+    def test_test_case_type_maps_onto_tuskr_key(self, env, send):
+        """filter_test_case_type becomes filter[testCaseType], value untouched."""
+        _list_cases(
+            FakeContext(),
+            filter_project="7",
+            filter_test_case_type="type-id-1",
+        )
+
+        params = send.call_args[0][1]
+        assert params == {
+            "page": 1,
+            "filter[project]": "7",
+            "filter[testCaseType]": "type-id-1",
+        }
+
+    def test_empty_test_case_type_sends_nothing(self, env, send):
+        """An empty string carries no more information than an absent filter."""
+        _list_cases(FakeContext(), filter_project="7", filter_test_case_type="")
+
+        assert send.call_args[0][1] == {"page": 1, "filter[project]": "7"}
+
     def test_falls_back_to_env_vars_in_stdio_mode(self, env, send):
         """Middleware sets state to None in stdio mode, so env vars are used."""
         _list_cases(

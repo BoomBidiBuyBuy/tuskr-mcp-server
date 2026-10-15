@@ -15,6 +15,7 @@ async def list_test_cases(
     filter_test_suite_section: str | None = None,
     filter_key: str | None = None,
     filter_name: str | None = None,
+    filter_test_case_type: str | None = None,
     filter_custom_fields: dict[str, str | int | float | bool | list[str]] | None = None,
     page: int = 1,
 ):
@@ -30,6 +31,12 @@ async def list_test_cases(
         filter_test_suite_section: ID or name of the test suite section to filter the test cases by
         filter_key: to filter test cases with key containing the specified value
         filter_name: to filter test cases with name containing the specified value
+        filter_test_case_type: ID of the test case type to filter by. Read the ID off
+            the testCaseTypeId field of any case row. Only the ID form is verified;
+            a type's displayed name is untested as a filter value. Verified live:
+            a valid ID narrows the result set, and an unknown value returns zero
+            rows rather than an error or the unfiltered set, so an empty result can
+            mean a mistyped ID, not that no case has that type.
         filter_custom_fields: maps a custom field's key to the value to filter on,
             e.g. {'priority_band': '<option-id>'}. The field key is whatever the
             tenant named it, so any project's own field set can be filtered here.
@@ -60,6 +67,8 @@ async def list_test_cases(
         params["filter[key]"] = filter_key
     if filter_name:
         params["filter[name]"] = filter_name
+    if filter_test_case_type:
+        params["filter[testCaseType]"] = filter_test_case_type
 
     # Each custom field gets its own flattened bracket key. An earlier attempt
     # sent the whole mapping as one JSON-encoded filter[customFields] value,
