@@ -10,6 +10,7 @@ import requests
 class RequestMethod(StrEnum):
     GET = "get"
     POST = "post"
+    PUT = "put"
 
 
 TUSKR_BASE_URL = "https://api.tuskr.live/api/tenant/"
@@ -56,16 +57,29 @@ def send(
     *,
     ext_account_id: str | None = None,  # deprecated alias; remove in next major version
     files: list[tuple[str, bytes, str]] | None = None,
+    top_level: dict | None = None,
 ):
     """Sends a request to the Tuskr endpoint.
 
     `files` is a list of (filename, content, mimetype) tuples and is only valid
     for POST. When present the request goes out as multipart/form-data instead
     of JSON.
+
+    `top_level` adds keys next to `data` in the JSON envelope, for endpoints
+    that expect a sibling of `data` such as a record `id`. It is only valid for
+    the JSON methods (POST and PUT) and cannot carry its own `data` key.
     """
 
     if files and method != RequestMethod.POST:
         raise ValueError("Attachments can only be sent with a POST request.")
+
+    if top_level:
+        if method == RequestMethod.GET:
+            raise ValueError("top_level can only be sent with a POST or PUT request.")
+        if files:
+            raise ValueError("top_level cannot be combined with attachments.")
+        if "data" in top_level:
+            raise ValueError("top_level cannot contain a 'data' key.")
 
     if ext_account_id is not None and ext_tenant_id is None:
         warnings.warn(
@@ -103,14 +117,17 @@ def send(
             data={"body": json.dumps({"data": body})},
             files=[("attachment", file) for file in files],
         )
-    elif method == RequestMethod.POST:
-        # Tuskr's REST API expects POST bodies as JSON wrapped in a top-level
-        # "data" key (see https://tuskr.app/kb/latest/api). Setting the
-        # Content-Type header and using requests' json= keyword handles both.
-        response = requests.post(
+    elif method in (RequestMethod.POST, RequestMethod.PUT):
+        # Tuskr's REST API expects POST and PUT bodies as JSON wrapped in a
+        # top-level "data" key (see https://tuskr.app/kb/latest/api). Setting
+        # the Content-Type header and using requests' json= keyword handles
+        # both. `top_level` keys sit beside "data", which is where Tuskr wants
+        # the record id on a PUT.
+        send_json = requests.post if method == RequestMethod.POST else requests.put
+        response = send_json(
             url,
             headers={**headers, "Content-Type": "application/json"},
-            json={"data": body},
+            json={**(top_level or {}), "data": body},
         )
     else:
         response = requests.get(url, headers=headers, params=body)
