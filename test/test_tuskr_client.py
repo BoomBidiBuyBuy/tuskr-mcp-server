@@ -127,6 +127,110 @@ class TestSendMultipart:
             )
 
 
+class TestSendPutAndTopLevel:
+    """Cover the PUT method and the keys sent beside `data`."""
+
+    @pytest.fixture(autouse=True)
+    def _env(self, monkeypatch):
+        monkeypatch.delenv("TUSKR_ACCOUNT_ID", raising=False)
+        monkeypatch.delenv("TUSKR_BASE_URL", raising=False)
+        monkeypatch.setenv("TUSKR_TENANT_ID", "12345")
+        monkeypatch.setenv("TUSKR_ACCESS_TOKEN", "abcdef")
+
+    def test_put_sends_the_wrapped_body_with_requests_put(self, mocker):
+        mock_response = mocker.Mock()
+        mock_response.text = "executed"
+        mocker.patch("requests.put", return_value=mock_response)
+        mocker.patch("requests.post")
+
+        result = tuskr_client.send(
+            "test-run/abc", {"name": "n"}, tuskr_client.RequestMethod.PUT
+        )
+
+        assert result == "executed"
+        expected_url = urljoin(tuskr_client.TUSKR_BASE_URL, "12345")
+        requests.put.assert_called_once_with(
+            f"{expected_url}/test-run/abc",
+            headers={
+                "Authorization": "Bearer abcdef",
+                "Content-Type": "application/json",
+            },
+            json={"data": {"name": "n"}},
+        )
+        requests.post.assert_not_called()
+
+    def test_top_level_keys_sit_beside_data_on_a_put(self, mocker):
+        mocker.patch("requests.put", return_value=mocker.Mock(text="ok"))
+
+        tuskr_client.send(
+            "test-run/abc",
+            {"name": "n"},
+            tuskr_client.RequestMethod.PUT,
+            top_level={"id": "abc"},
+        )
+
+        assert requests.put.call_args[1]["json"] == {
+            "id": "abc",
+            "data": {"name": "n"},
+        }
+
+    def test_top_level_keys_sit_beside_data_on_a_post(self, mocker):
+        mocker.patch("requests.post", return_value=mocker.Mock(text="ok"))
+
+        tuskr_client.send(
+            "action",
+            {"a": 1},
+            tuskr_client.RequestMethod.POST,
+            top_level={"id": "abc"},
+        )
+
+        assert requests.post.call_args[1]["json"] == {"id": "abc", "data": {"a": 1}}
+
+    def test_post_without_top_level_keeps_its_old_body(self, mocker):
+        mocker.patch("requests.post", return_value=mocker.Mock(text="ok"))
+
+        tuskr_client.send("action", {"a": 1}, tuskr_client.RequestMethod.POST)
+
+        assert requests.post.call_args[1]["json"] == {"data": {"a": 1}}
+
+    def test_top_level_with_get_raises(self):
+        with pytest.raises(ValueError, match="POST or PUT"):
+            tuskr_client.send(
+                "action",
+                {},
+                tuskr_client.RequestMethod.GET,
+                top_level={"id": "abc"},
+            )
+
+    def test_top_level_with_a_data_key_raises(self):
+        with pytest.raises(ValueError, match="'data' key"):
+            tuskr_client.send(
+                "action",
+                {},
+                tuskr_client.RequestMethod.PUT,
+                top_level={"data": {}},
+            )
+
+    def test_top_level_with_files_raises(self):
+        with pytest.raises(ValueError, match="attachments"):
+            tuskr_client.send(
+                "action",
+                {},
+                tuskr_client.RequestMethod.POST,
+                files=[("a.txt", b"x", "text/plain")],
+                top_level={"id": "abc"},
+            )
+
+    def test_files_with_put_raise(self):
+        with pytest.raises(ValueError, match="only be sent with a POST"):
+            tuskr_client.send(
+                "action",
+                {},
+                tuskr_client.RequestMethod.PUT,
+                files=[("a.txt", b"x", "text/plain")],
+            )
+
+
 class TestTenantIdResolution:
     """Cover TUSKR_TENANT_ID / TUSKR_ACCOUNT_ID precedence and deprecation."""
 
