@@ -1,6 +1,6 @@
 [project]
 name = "tuskr-mcp-server"
-version = "0.1.4"
+version = "0.1.5"
 description = "MCP server for the Tuskr test management REST API"
 authors = [
     { name = "Ruslan Galinskii", email = "galinskyifmo@gmail.com" }
