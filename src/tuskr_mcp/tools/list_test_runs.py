@@ -60,7 +60,7 @@ def trim_test_run_rows(raw):
 @mcp.tool
 async def list_test_runs(
     ctx: Context,
-    filter_project,
+    filter_project: str,
     filter_name: str | None = None,
     filter_key: str | None = None,
     filter_status: str | None = None,

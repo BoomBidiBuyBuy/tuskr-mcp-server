@@ -10,7 +10,7 @@ from tuskr_mcp.server import mcp
 @mcp.tool
 async def list_test_cases(
     ctx: Context,
-    filter_project,
+    filter_project: str,
     filter_test_suite: str | None = None,
     filter_test_suite_section: str | None = None,
     filter_key: str | None = None,
@@ -27,8 +27,12 @@ async def list_test_cases(
 
     Args:
         filter_project: specifies the project ID to filter the test cases associated with a particular project
-        filter_test_suite: ID, key or name of the test suite to filter the test cases by
-        filter_test_suite_section: ID or name of the test suite section to filter the test cases by
+        filter_test_suite: ID of the test suite to filter the test cases by. Only
+            the ID works: a suite's key or name returns zero rows, not an error.
+            Find suite IDs with list_test_suites.
+        filter_test_suite_section: ID of the test suite section to filter the test
+            cases by. Only the ID works: a section name returns zero rows. Find
+            section IDs with list_test_suites.
         filter_key: to filter test cases with key containing the specified value
         filter_name: to filter test cases with name containing the specified value
         filter_test_case_type: ID of the test case type to filter by. Read the ID off

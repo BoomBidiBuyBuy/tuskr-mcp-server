@@ -11,26 +11,26 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-    
+        python-version: ["3.12", "3.13"]
+    env:
+      # Without this, uv follows .python-version and every matrix job would
+      # run the same interpreter.
+      UV_PYTHON: ${{ matrix.python-version }}
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    
+
     - name: Install uv
-      uses: astral-sh/setup-uv@v3
+      uses: astral-sh/setup-uv@v7
       with:
-        version: "latest"
-    
+        version: "0.12.23"
+
     - name: Install dependencies
-      run: |
-        uv sync --dev
-   
+      run: uv sync --locked
+
+    - name: Show interpreter
+      run: uv run python --version
+
     - name: Run tests
-      run: |
-        uv run pytest -vs
+      run: uv run pytest -vs

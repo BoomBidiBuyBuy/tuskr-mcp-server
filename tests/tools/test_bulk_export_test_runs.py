@@ -1,7 +1,7 @@
 import json
 
 import tuskr_client
-from test.helpers import FakeContext, call_tool
+from tests.helpers import FakeContext, call_tool
 from tuskr_mcp.tools import bulk_export_test_runs as module
 
 

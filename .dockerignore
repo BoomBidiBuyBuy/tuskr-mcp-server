@@ -1,0 +1,15 @@
+# Keep credentials, local environments and VCS data out of the image.
+.env
+.env.*
+!.env.example
+.venv
+.git
+.github
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+build/
+dist/
+*.egg-info
+tests/

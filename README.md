@@ -7,8 +7,8 @@ Supports access token authentication.
 
 ## Tools
 
-Every tool wraps a single Tuskr REST endpoint, relative to
-`https://api.tuskr.live/api/tenant/<tenant-id>/`.
+Each tool wraps one Tuskr REST endpoint, or two for `get_test_run_timeline`.
+Endpoints are relative to `https://api.tuskr.live/api/tenant/<tenant-id>/`.
 
 | Tool | Method | Endpoint | Purpose |
 | --- | --- | --- | --- |
@@ -16,11 +16,12 @@ Every tool wraps a single Tuskr REST endpoint, relative to
 | `list_test_cases` | `GET` | `test-case` | Lists a project's test cases, filterable by test suite, section, key, name, test case type and custom fields. Use it to discover the case keys a project actually contains before recording results. |
 | `list_test_suites` | `GET` | `test-suite` | Lists a project's test suites, each with its embedded sections, filterable by name. Use it to find the suite and section IDs that `list_test_cases` filters on. |
 | `list_test_runs` | `GET` | `test-run` | Lists a project's test runs, filterable by name, key, status and assignee. `filter_incomplete=True` walks every page and returns only runs below 100% done. |
-| `add_test_case` | `POST` | `test-case` | Creates a test case in an existing suite and section. Custom-field keys and value shapes are tenant specific. The API has no delete endpoint for test cases, so try it on a sandbox project. |
+| `add_test_case` | `POST` | `test-case` | Creates a test case in an existing suite and section. Pass `test_case_type` too: Tuskr answers "Type is required" without one unless the tenant has a default type. Custom-field keys and value shapes are tenant specific. The estimate must be at least 1 minute: Tuskr stores 0 as its default of 15. The API has no delete endpoint for test cases, so try it on a sandbox project. |
+| `upsert_test_case` | `POST` | `test-case/upsert` | Creates a test case or updates an existing one. Pass exactly one of `test_case_id` (update that case) or `external_id` (update the case with that external ID, or create it when none exists). Only the fields you pass are sent, so an update cannot clear a field. The suite and section are looked up by name only, and an ID is rejected as a missing suite or section. `create_missing_suite` and `create_missing_section` create the suite or section when no such name exists, so with them set an ID passed by mistake would become the new suite's or section's name. |
 | `create_test_run` | `POST` | `test-run` | Creates a test run containing all cases in the project or a named subset. |
 | `copy_test_run` | `POST` | `test-run/copy` | Copies an existing run and its case selection within the same project. Results are not carried over; every case starts untested. |
 | `add_test_run_results` | `POST` | `test-run-result/bulk` | Records one status against one or many cases in a run, optionally with up to two file attachments (see [Attachments](#attachments)). Prefer a single call with a list of cases over repeated single calls. |
-| `get_test_run_results` | `GET` | `test-run/<id>/results` | Fetches the cases in a run with their latest result, filterable by status. Pass `status='FAILED'` for a confirmation-test worklist. |
+| `get_test_run_results` | `GET` | `test-run/<id>/results` | Fetches the cases in a run with their latest result, filterable by status and by `test_cases`. Pass `status='FAILED'` for a confirmation-test worklist. One page of 100 rows by default; `fetch_all_pages=True` walks every page. Each row's nested test case is trimmed to its ID, key, name and this run's result by default; `trim_response=False` keeps the full object, including its whole result history. Takes the run's ID, not its key. |
 | `bulk_export_test_runs` | `GET` | `test-run/bulk-export` | Exports a project's test runs with their test cases and the latest result per case, in one call. Filterable by run IDs, status, completion status and assignee. Always narrow it with `filter_ids` or another filter when cases are included: a project's runs with all their cases run to tens of megabytes, so nested cases are trimmed by default (`trim_response=False` keeps them whole) and a response over the MCP size limit is replaced by an error naming the arguments that narrow it. `filter_exclude_test_cases=True` returns runs only. Run IDs are the UUIDs the API returns, not the R-numbered keys. |
 | `get_test_run_timeline` | `GET` | `test-run/<id>/results`, `test-run/<id>` | Reports when testing in a run actually started and finished, derived from each case's `resultHistory`: first and last execution, span in minutes, distinct days with activity, an optional per-day breakdown and the cases never executed. Walks every results page, so it costs one call per 100 cases. Takes the run's ID, not its key. |
 | `get_test_run_details` | `GET` | `test-run/<id>/details` | Fetches a run's metadata plus `firstResultAt`, `lastResultAt` and `durationInMinutes`. Takes the run's ID, not its key. The timestamps are null until a result is recorded, and Tuskr may leave them null for results recorded before it added the endpoint, so a null means unknown, not that the run has no results. |
@@ -73,13 +74,21 @@ TUSKR_ACCESS_TOKEN=<your access token>
 ```
 (this doc desc https://tuskr.app/kb/latest/api)
 
-and optionally 
+and optionally
 ```
 MCP_TRANSPORT=<transport type: http or stdio>
 MCP_HOST=<host for HTTP transport>
 MCP_PORT=<port for HTTP transport>
 TUSKR_ATTACHMENT_DIR=<directory attachments may be read from>
+TUSKR_BASE_URL=<Tuskr API base URL, default https://api.tuskr.live/api/tenant/>
 ```
+
+`TUSKR_BASE_URL` only needs changing to point the server at a different Tuskr
+API host, such as a mock in tests. Keep the trailing slash.
+
+In HTTP mode the `Authorization` and `Tenant-ID` headers of each request take
+precedence over `TUSKR_ACCESS_TOKEN` and `TUSKR_TENANT_ID`, so one server can
+serve several users with their own tokens.
 
 ## Command Line Parameters
 
@@ -90,6 +99,10 @@ The MCP server supports the following command line parameters:
 - `--port`: Port number for HTTP transport (default: `8000`)
 
 **Note**: The `--host` and `--port` parameters are only applicable when using the `http` transport.
+
+**Note**: The default host `0.0.0.0` listens on every network interface, which
+is what a container needs. When you run the server directly on a workstation,
+pass `--host 127.0.0.1` (or set `MCP_HOST`) so it is reachable only locally.
 
 ### Default Values
 
@@ -265,7 +278,7 @@ back with project names and IDs. A useful follow-up, since it exercises a filter
 and a second tool: ask which test runs in a given project are not yet finished,
 which resolves to `list_test_runs` with `filter_incomplete`.
 
-A request such as "mark TC-14 and TC-15 as passed in run TR-3" resolves to a
+A request such as "mark C-14 and C-15 as passed in run R-3" resolves to a
 single `add_test_run_results` call. Bear in mind that several of these tools
 write to Tuskr, so point the server at a sandbox project while you are still
 exploring.
@@ -308,17 +321,14 @@ uv run pytest -vsx
 
 The project uses the `ruff` tool as a linter.
 
-The following command allows to run linter
+CI runs both of these and fails on any finding, so run them before pushing:
 
 ```
-uv run ruff check
+uv run ruff format --check .
+uv run ruff check .
 ```
 
-and this command allow to fix formatting
-
-```
-uv run ruff format
-```
+`uv run ruff format .` rewrites the files in place to fix formatting.
 
 ### Dockerization
 
@@ -327,7 +337,10 @@ The following command allows to build a docker image
 docker build -t tuskr-mcp .
 ```
 
-and then you can run it using the
+and then run it with your `.env` file, publishing the server port:
 ```
-docker run -it tuskr-mcp
+docker run -it --rm --env-file .env -p 8000:8000 tuskr-mcp
 ```
+
+The server is then reachable at `http://localhost:8000/mcp/`. If your `.env`
+sets `MCP_PORT`, publish that port instead.

@@ -1,7 +1,7 @@
 import json
 
 import tuskr_client
-from test.helpers import FakeContext, call_tool
+from tests.helpers import FakeContext, call_tool
 from tuskr_mcp.tools import get_test_run_details as module
 
 RUN_ID = "0b6f3c2e-5d1a-4c8e-9f7b-2a4d6e8f0a1c"

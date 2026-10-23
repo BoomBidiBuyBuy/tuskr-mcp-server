@@ -28,25 +28,37 @@ async def add_test_case(
     them. There is no delete endpoint for test cases in the Tuskr API, so use
     a sandbox project while experimenting and name throwaway cases clearly.
 
+    Pass `test_case_type` as well: Tuskr rejects a create without one with
+    "Type is required", at least on a tenant with no default type. Find a
+    type's ID on the testCaseTypeId field of any list_test_cases row.
+
     Args:
         name: name of the new test case
         project: ID or name of the project where to create the test case
         test_suite: ID or name of an existing test suite
         test_suite_section: ID or name of an existing section in the suite
         description: description of the test case
-        test_case_type: ID or name of the test case type
-        estimated_time_in_minutes: estimated execution time, whole minutes
+        test_case_type: ID or name of the test case type. Leave it unset
+            only if the tenant has a default type
+        estimated_time_in_minutes: estimated execution time, whole minutes,
+            at least 1. Tuskr silently replaces 0 with its default (15), so
+            0 is rejected here before any request
         custom_fields: object of custom field values, keyed by the field's key.
             Keys and value shapes are specific to the tenant and depend on the
             field type. Tuskr's own example uses `stepsWithExpectedResults`,
             a `multi_select` field and a `date` field.
     """
+    if estimated_time_in_minutes is not None and estimated_time_in_minutes < 1:
+        raise ValueError(
+            "estimated_time_in_minutes must be at least 1; leave it unset to "
+            "use Tuskr's default."
+        )
+
     body: dict[str, Any] = {"name": name, "project": project}
 
     # Only send optional keys the caller actually set. Tuskr resolves the
     # suite, section and type against existing records, so a blank value is a
-    # lookup that fails rather than a no-op. The estimate is tested against
-    # None so that an explicit 0 is still sent.
+    # lookup that fails rather than a no-op.
     if test_suite:
         body["testSuite"] = test_suite
     if test_suite_section:

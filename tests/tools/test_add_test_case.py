@@ -1,5 +1,7 @@
+import pytest
+
 import tuskr_client
-from test.helpers import FakeContext, call_tool
+from tests.helpers import FakeContext, call_tool
 from tuskr_mcp.tools import add_test_case as module
 
 
@@ -69,16 +71,27 @@ class TestAddTestCase:
             "customFields": {"is_automated": True},
         }
 
-    def test_zero_minute_estimate_is_forwarded(self, env, send):
-        """0 is a real value, so only None counts as unset."""
+    def test_zero_minute_estimate_is_rejected_before_any_request(self, env, send):
+        """Tuskr silently stores its default (15) for 0, so 0 never reaches it."""
+        with pytest.raises(ValueError, match="at least 1"):
+            _add_case(
+                FakeContext(),
+                name="Login works",
+                project="Sandbox",
+                estimated_time_in_minutes=0,
+            )
+
+        send.assert_not_called()
+
+    def test_one_minute_estimate_is_forwarded(self, env, send):
         _add_case(
             FakeContext(),
             name="Login works",
             project="Sandbox",
-            estimated_time_in_minutes=0,
+            estimated_time_in_minutes=1,
         )
 
-        assert send.call_args[0][1]["estimatedTimeInMinutes"] == 0
+        assert send.call_args[0][1]["estimatedTimeInMinutes"] == 1
 
     def test_custom_fields_are_passed_through_unchanged(self, env, send):
         """Custom-field keys and value shapes are tenant specific."""

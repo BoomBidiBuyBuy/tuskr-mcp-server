@@ -38,17 +38,25 @@ async def upsert_test_case(
     value on an update, so this tool cannot clear a field to empty. Pass `name`
     when the call may create a case.
 
+    Unlike add_test_case, this endpoint looks the suite and section up by NAME
+    only: a suite or section ID is answered with "Test suite <id> does not
+    exist". With create_missing_suite or create_missing_section set, an ID
+    passed by mistake would instead create a suite or section named after it.
+    The test case type accepts an ID or a name.
+
     Args:
         project: ID, name or external ID of the project
         test_case_id: UUID of an existing test case to update
         external_id: external ID used to find the case to update, or to assign
             to the case being created
         name: name of the test case
-        test_suite: ID or name of the test suite
-        test_suite_section: ID or name of the section in the suite
+        test_suite: name of the test suite (not its ID)
+        test_suite_section: name of the section in the suite (not its ID)
         description: description of the test case
         test_case_type: ID or name of the test case type
-        estimated_time_in_minutes: estimated execution time, whole minutes
+        estimated_time_in_minutes: estimated execution time, whole minutes,
+            at least 1. Tuskr rejects 0 ("Validation min on
+            estimatedTimeInMinutes failed"), so 0 is rejected here first
         custom_fields: object of custom field values, keyed by the field's key.
             Keys and value shapes are specific to the tenant and depend on the
             field type. Tuskr's own example uses `stepsWithExpectedResults`,
@@ -65,12 +73,18 @@ async def upsert_test_case(
             "Provide only one of `test_case_id` or `external_id`, not both."
         )
 
+    if estimated_time_in_minutes is not None and estimated_time_in_minutes < 1:
+        raise ValueError(
+            "estimated_time_in_minutes must be at least 1; leave it unset to "
+            "keep the current estimate."
+        )
+
     body: dict[str, Any] = {"project": project}
 
     # Only send keys the caller actually set. On an update a blank value sent
     # by mistake could overwrite real data, and Tuskr resolves suite, section
     # and type against existing records, so a blank is a failed lookup rather
-    # than a no-op. The estimate is tested against None so that 0 is still sent.
+    # than a no-op.
     if test_case_id:
         body["id"] = test_case_id
     if external_id:

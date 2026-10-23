@@ -1,5 +1,5 @@
 import tuskr_client
-from test.helpers import FakeContext, call_tool
+from tests.helpers import FakeContext, call_tool
 from tuskr_mcp.tools import set_test_run_lock as module
 
 

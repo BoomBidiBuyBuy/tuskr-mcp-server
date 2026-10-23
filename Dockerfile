@@ -1,18 +1,19 @@
-# Use a Python base image
-FROM python:3.10-slim
+# Matches requires-python in pyproject.toml.
+FROM python:3.12-slim
 
-# Set the working directory
 WORKDIR /app
 
-# Copy the contents of the repository to the working directory
-COPY . .
+RUN pip install --no-cache-dir uv==0.12.23
 
-# Install the project dependencies
-RUN pip install uv
-RUN uv sync
+# Dependencies first, so editing the source does not invalidate this layer.
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --locked --no-dev --no-install-project
+
+COPY src ./src
 
 ENV MCP_HOST="0.0.0.0"
 ENV MCP_PORT=8000
+EXPOSE 8000
 
-# Command to run the server
-CMD ["uv", "run", "src/main.py"]
+# --no-sync: run what was installed above, without pulling the dev group in.
+CMD ["uv", "run", "--no-sync", "src/main.py"]

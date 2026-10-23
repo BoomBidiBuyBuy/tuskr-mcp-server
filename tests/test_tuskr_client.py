@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 import pytest
 import requests
 
-from src import tuskr_client
+import tuskr_client
 
 
 class TestSend:
@@ -47,6 +47,7 @@ class TestSend:
                 "Content-Type": "application/json",
             },
             json={"data": "some body"},
+            timeout=tuskr_client.REQUEST_TIMEOUT,
         )
 
     def test_get(self, mocker, mock_envs):
@@ -68,6 +69,7 @@ class TestSend:
             f"{expected_base_url}/create_report",
             headers={"Authorization": f"Bearer {access_token}"},
             params="some body",
+            timeout=tuskr_client.REQUEST_TIMEOUT,
         )
 
 
@@ -105,6 +107,7 @@ class TestSendMultipart:
             headers={"Authorization": "Bearer abcdef"},
             data={"body": '{"data": {"status": "FAILED"}}'},
             files=[("attachment", files[0]), ("attachment", files[1])],
+            timeout=tuskr_client.REQUEST_TIMEOUT,
         )
 
     def test_empty_files_list_uses_the_json_path(self, mocker):
@@ -156,6 +159,7 @@ class TestSendPutAndTopLevel:
                 "Content-Type": "application/json",
             },
             json={"data": {"name": "n"}},
+            timeout=tuskr_client.REQUEST_TIMEOUT,
         )
         requests.post.assert_not_called()
 
@@ -304,3 +308,51 @@ class TestTenantIdResolution:
         monkeypatch.setenv("TUSKR_ACCESS_TOKEN", "test-token")
         with pytest.raises(ValueError, match="tenant ID is not set"):
             tuskr_client.send("action", {}, tuskr_client.RequestMethod.GET)
+
+
+class TestAccessTokenResolution:
+    """Cover the access token precedence and the missing-token guard."""
+
+    @pytest.fixture(autouse=True)
+    def _env(self, monkeypatch, mocker):
+        monkeypatch.delenv("TUSKR_ACCOUNT_ID", raising=False)
+        monkeypatch.delenv("TUSKR_BASE_URL", raising=False)
+        monkeypatch.setenv("TUSKR_TENANT_ID", "12345")
+        mocker.patch("requests.get", return_value=mocker.Mock(text="ok"))
+
+    def _authorization(self):
+        return requests.get.call_args[1]["headers"]["Authorization"]
+
+    def test_caller_token_beats_env_token(self, monkeypatch):
+        monkeypatch.setenv("TUSKR_ACCESS_TOKEN", "token-from-env")
+
+        tuskr_client.send(
+            "action",
+            {},
+            tuskr_client.RequestMethod.GET,
+            ext_access_token="token-from-header",
+        )
+
+        assert self._authorization() == "Bearer token-from-header"
+
+    def test_env_token_is_the_fallback(self, monkeypatch):
+        monkeypatch.setenv("TUSKR_ACCESS_TOKEN", "token-from-env")
+
+        tuskr_client.send("action", {}, tuskr_client.RequestMethod.GET)
+
+        assert self._authorization() == "Bearer token-from-env"
+
+    def test_missing_token_raises_instead_of_sending_bearer_none(self, monkeypatch):
+        monkeypatch.delenv("TUSKR_ACCESS_TOKEN", raising=False)
+
+        with pytest.raises(ValueError, match="access token is not set"):
+            tuskr_client.send("action", {}, tuskr_client.RequestMethod.GET)
+
+        requests.get.assert_not_called()
+
+    def test_every_request_carries_a_timeout(self, monkeypatch):
+        monkeypatch.setenv("TUSKR_ACCESS_TOKEN", "token-from-env")
+
+        tuskr_client.send("action", {}, tuskr_client.RequestMethod.GET)
+
+        assert requests.get.call_args[1]["timeout"] == tuskr_client.REQUEST_TIMEOUT

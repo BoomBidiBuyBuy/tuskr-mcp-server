@@ -15,6 +15,11 @@ class RequestMethod(StrEnum):
 
 TUSKR_BASE_URL = "https://api.tuskr.live/api/tenant/"
 
+# (connect, read) seconds. The read timeout bounds the wait between bytes, not
+# the whole transfer, so a large export still completes while a stalled
+# connection fails instead of hanging the tool call forever.
+REQUEST_TIMEOUT = (10, 120)
+
 _TENANT_DEPRECATION_MESSAGE = (
     "TUSKR_ACCOUNT_ID is deprecated and will be removed in a future "
     "release; use TUSKR_TENANT_ID instead."
@@ -50,7 +55,7 @@ def _resolve_tenant_id(ext_tenant_id: str | None = None) -> str | None:
 
 def send(
     action: str,
-    body: str,
+    body: dict,
     method: RequestMethod,
     ext_tenant_id: str | None = None,
     ext_access_token: str | None = None,
@@ -60,6 +65,13 @@ def send(
     top_level: dict | None = None,
 ):
     """Sends a request to the Tuskr endpoint.
+
+    `body` is the request payload: the JSON object sent under `data` for POST
+    and PUT, or the query parameters for GET.
+
+    The access token is taken from `ext_access_token` (typically the caller's
+    Bearer header) and falls back to the TUSKR_ACCESS_TOKEN environment
+    variable, the same precedence as the tenant ID.
 
     `files` is a list of (filename, content, mimetype) tuples and is only valid
     for POST. When present the request goes out as multipart/form-data instead
@@ -103,7 +115,13 @@ def send(
         tenant_id + f"/{action}",
     )
 
-    access_token = os.environ.get("TUSKR_ACCESS_TOKEN", ext_access_token)
+    access_token = ext_access_token or os.environ.get("TUSKR_ACCESS_TOKEN")
+    if not access_token:
+        raise ValueError(
+            "Tuskr access token is not set. Provide TUSKR_ACCESS_TOKEN via "
+            "environment, the Authorization: Bearer HTTP header, or the "
+            "ext_access_token argument."
+        )
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -116,6 +134,7 @@ def send(
             headers=headers,
             data={"body": json.dumps({"data": body})},
             files=[("attachment", file) for file in files],
+            timeout=REQUEST_TIMEOUT,
         )
     elif method in (RequestMethod.POST, RequestMethod.PUT):
         # Tuskr's REST API expects POST and PUT bodies as JSON wrapped in a
@@ -128,8 +147,11 @@ def send(
             url,
             headers={**headers, "Content-Type": "application/json"},
             json={**(top_level or {}), "data": body},
+            timeout=REQUEST_TIMEOUT,
         )
     else:
-        response = requests.get(url, headers=headers, params=body)
+        response = requests.get(
+            url, headers=headers, params=body, timeout=REQUEST_TIMEOUT
+        )
 
     return response.text
