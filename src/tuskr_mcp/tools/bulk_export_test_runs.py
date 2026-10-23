@@ -120,7 +120,7 @@ def enforce_size_cap(raw):
 @mcp.tool
 async def bulk_export_test_runs(
     ctx: Context,
-    filter_project,
+    filter_project: str,
     filter_exclude_test_cases: bool = False,
     filter_assigned_to: str | None = None,
     filter_ids: str | list[str] | None = None,

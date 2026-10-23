@@ -1,7 +1,7 @@
 import pytest
 
 import tuskr_client
-from test.helpers import FakeContext, call_tool
+from tests.helpers import FakeContext, call_tool
 from tuskr_mcp.tools import upsert_test_case as module
 
 
@@ -97,16 +97,27 @@ class TestUpsertTestCase:
             "customFields": {"is_automated": True},
         }
 
-    def test_zero_minute_estimate_is_forwarded(self, env, send):
-        """0 is a real value, so only None counts as unset."""
+    def test_zero_minute_estimate_is_rejected_before_any_request(self, env, send):
+        """Tuskr answers 0 with a validation error, so 0 never reaches it."""
+        with pytest.raises(ValueError, match="at least 1"):
+            _upsert(
+                FakeContext(),
+                project="Sandbox",
+                external_id="ext-1",
+                estimated_time_in_minutes=0,
+            )
+
+        send.assert_not_called()
+
+    def test_one_minute_estimate_is_forwarded(self, env, send):
         _upsert(
             FakeContext(),
             project="Sandbox",
             external_id="ext-1",
-            estimated_time_in_minutes=0,
+            estimated_time_in_minutes=1,
         )
 
-        assert send.call_args[0][1]["estimatedTimeInMinutes"] == 0
+        assert send.call_args[0][1]["estimatedTimeInMinutes"] == 1
 
     def test_custom_fields_are_passed_through_unchanged(self, env, send):
         """Custom-field keys and value shapes are tenant specific."""

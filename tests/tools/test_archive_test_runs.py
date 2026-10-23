@@ -1,7 +1,7 @@
 import pytest
 
 import tuskr_client
-from test.helpers import FakeContext, call_tool
+from tests.helpers import FakeContext, call_tool
 from tuskr_mcp.tools import archive_test_runs as module
 
 RUN_ID = "74633d5b-d97d-49ad-94a8-cf5348020cb3"

@@ -1,7 +1,7 @@
 [project]
 name = "tuskr-mcp-server"
 version = "0.1.4"
-description = "Add your description here"
+description = "MCP server for the Tuskr test management REST API"
 authors = [
     { name = "Ruslan Galinskii", email = "galinskyifmo@gmail.com" }
 ]
@@ -10,16 +10,16 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.2.1",
-    "fastmcp>=2.10.4",
+    "fastmcp>=3.0,<5",
     "requests>=2.32.4",
 ]
 keywords = ["mcp", "tuskr", "model-context-protocol"]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.4.1",
     "pytest-mock>=3.14.1",
-    "ruff>=0.12.5",
+    "ruff==0.16.10",
 ]
 
 [project.urls]

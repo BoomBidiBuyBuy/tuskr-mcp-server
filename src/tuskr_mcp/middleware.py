@@ -17,16 +17,20 @@ class UserTokenHandler(Middleware):
         """
         logger.info(f"Raw middleware processing: {context.method}")
 
-        self.retrieve_and_apply_token(context)
+        await self.retrieve_and_apply_token(context)
 
         result = await call_next(context)
         logger.info(f"Raw middleware completed: {context.method}")
         return result
 
-    def retrieve_and_apply_token(self, context: MiddlewareContext):
+    async def retrieve_and_apply_token(self, context: MiddlewareContext):
         """
         In stdio mode there is no HTTP request/headers, so fall back to None
-        and let the tool functions fall back to env vars instead
+        and let the tool functions fall back to env vars instead.
+
+        Context state access is async from fastmcp 3.0 on. A set_state call
+        that is not awaited never runs, which silently drops the caller's
+        headers and falls back to the server's env credentials.
         """
         try:
             request = context.fastmcp_context.request_context.request
@@ -37,8 +41,8 @@ class UserTokenHandler(Middleware):
             logger.info(
                 "No HTTP request context (stdio mode), skipping header extraction"
             )
-            context.fastmcp_context.set_state("ext_access_token", None)
-            context.fastmcp_context.set_state("ext_tenant_id", None)
+            await context.fastmcp_context.set_state("ext_access_token", None)
+            await context.fastmcp_context.set_state("ext_tenant_id", None)
             return
 
         # Read access token
@@ -51,9 +55,10 @@ class UserTokenHandler(Middleware):
                 raise ValueError(
                     "Unauthorized: Empty Bearer token",
                 )
-            logger.info(f"Got Bearer token: {token}")
+            # Never log the token itself: INFO logs end up in shared log stores.
+            logger.info("Got Bearer token from the Authorization header")
 
-        context.fastmcp_context.set_state("ext_access_token", token)
+        await context.fastmcp_context.set_state("ext_access_token", token)
 
         # Try to retrieve tenant id from headers; prefer the new Tenant-ID header
         # and fall back to the legacy Account-ID header with a deprecation warning.
@@ -79,4 +84,4 @@ class UserTokenHandler(Middleware):
             else:
                 logger.info("Tenant id is not defined")
 
-        context.fastmcp_context.set_state("ext_tenant_id", tenant_id)
+        await context.fastmcp_context.set_state("ext_tenant_id", tenant_id)

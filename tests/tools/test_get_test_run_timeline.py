@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 import tuskr_client
-from test.helpers import FakeContext, call_tool
+from tests.helpers import FakeContext, call_tool
 from tuskr_mcp.tools import get_test_run_timeline as module
 
 RUN = "246d1fa7-9c30-4e21-8f7a-1b0d55e2c711"

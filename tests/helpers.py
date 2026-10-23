@@ -9,7 +9,11 @@ import asyncio
 
 
 class FakeContext:
-    """Minimal stand-in for the FastMCP Context used by the tool functions."""
+    """Minimal stand-in for the FastMCP Context used by the tool functions.
+
+    `get_state` is async because it is async on the real Context from fastmcp
+    3.0 on; test_credentials pins that, so this fake cannot drift from it.
+    """
 
     def __init__(self, state=None):
         self._state = state or {}
