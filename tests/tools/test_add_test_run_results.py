@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 import tuskr_client
@@ -151,6 +153,122 @@ class TestAddTestRunResultsCredentials:
         )
 
         assert send.call_args[1]["ext_tenant_id"] == "tenant-legacy"
+
+
+class TestAddTestRunResultsProject:
+    """`project` scopes a run key or name to one project before the bulk call."""
+
+    RUN_UUID = "258deaae-1c2d-4e3f-8a9b-0c1d2e3f4a5b"
+
+    @staticmethod
+    def _lookup_page(rows):
+        return json.dumps({"rows": rows, "meta": {"pages": 1}})
+
+    def test_key_is_resolved_in_the_project_and_the_uuid_is_sent(self, env, send):
+        send.side_effect = [
+            self._lookup_page([{"id": self.RUN_UUID, "key": "R-1", "name": "Run"}]),
+            "{}",
+        ]
+
+        _add_result(
+            FakeContext(),
+            test_run="R-1",
+            status="PASSED",
+            test_cases="C-1",
+            project="project-1",
+        )
+
+        assert send.call_count == 2
+        lookup, bulk = send.call_args_list
+        assert lookup[0][0] == "test-run"
+        assert lookup[0][1]["filter[project]"] == "project-1"
+        assert bulk[0][0] == "test-run-result/bulk"
+        assert bulk[0][1]["testRun"] == self.RUN_UUID
+
+    def test_lookup_uses_the_resolved_credentials(self, env, send):
+        send.side_effect = [
+            self._lookup_page([{"id": self.RUN_UUID, "key": "R-1", "name": "Run"}]),
+            "{}",
+        ]
+
+        _add_result(
+            FakeContext({"ext_tenant_id": "tenant-h", "ext_access_token": "token-h"}),
+            test_run="R-1",
+            status="PASSED",
+            test_cases="C-1",
+            project="project-1",
+        )
+
+        for call in send.call_args_list:
+            assert call[1]["ext_tenant_id"] == "tenant-h"
+            assert call[1]["ext_access_token"] == "token-h"
+
+    def test_uuid_skips_the_lookup(self, env, send):
+        _add_result(
+            FakeContext(),
+            test_run=self.RUN_UUID,
+            status="PASSED",
+            test_cases="C-1",
+            project="project-1",
+        )
+
+        send.assert_called_once()
+        assert send.call_args[0][0] == "test-run-result/bulk"
+        assert send.call_args[0][1]["testRun"] == self.RUN_UUID
+
+    def test_project_is_never_sent_in_the_bulk_body(self, env, send):
+        """The bulk endpoint does not document it, so it would be ignored silently."""
+        _add_result(
+            FakeContext(),
+            test_run=self.RUN_UUID,
+            status="PASSED",
+            test_cases="C-1",
+            project="project-1",
+        )
+
+        assert set(send.call_args[0][1]) == {"testRun", "status", "testCases"}
+
+    def test_failed_lookup_records_nothing(self, env, send):
+        send.return_value = self._lookup_page([])
+
+        with pytest.raises(ValueError, match="No test run"):
+            _add_result(
+                FakeContext(),
+                test_run="R-404",
+                status="PASSED",
+                test_cases="C-1",
+                project="project-1",
+            )
+
+        actions = [call[0][0] for call in send.call_args_list]
+        assert "test-run-result/bulk" not in actions
+
+    def test_without_project_there_is_no_lookup(self, env, send):
+        """Tenant-wide behaviour is unchanged: the key goes to Tuskr as given."""
+        _add_result(
+            FakeContext(),
+            test_run="R-1",
+            status="PASSED",
+            test_cases="C-1",
+        )
+
+        send.assert_called_once()
+        assert send.call_args[0][1]["testRun"] == "R-1"
+
+    def test_invalid_attachment_fails_before_any_lookup(self, env, send, monkeypatch):
+        monkeypatch.delenv("TUSKR_ATTACHMENT_DIR", raising=False)
+
+        with pytest.raises(ValueError, match="Attachments are disabled"):
+            _add_result(
+                FakeContext(),
+                test_run="R-1",
+                status="PASSED",
+                test_cases="C-1",
+                attachments=["log.txt"],
+                project="project-1",
+            )
+
+        send.assert_not_called()
 
 
 class TestAddTestRunResultsAttachments:
