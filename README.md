@@ -21,7 +21,7 @@ Endpoints are relative to `https://api.tuskr.live/api/tenant/<tenant-id>/`.
 | `upsert_test_case` | `POST` | `test-case/upsert` | Creates a test case or updates an existing one. Pass exactly one of `test_case_id` (update that case) or `external_id` (update the case with that external ID, or create it when none exists). Only the fields you pass are sent, so an update cannot clear a field. The suite and section are looked up by name only, and an ID is rejected as a missing suite or section. `create_missing_suite` and `create_missing_section` create the suite or section when no such name exists, so with them set an ID passed by mistake would become the new suite's or section's name. |
 | `create_test_run` | `POST` | `test-run` | Creates a test run containing all cases in the project or a named subset. |
 | `copy_test_run` | `POST` | `test-run/copy` | Copies an existing run and its case selection within the same project. Results are not carried over; every case starts untested. |
-| `add_test_run_results` | `POST` | `test-run-result/bulk` | Records one status against one or many cases in a run, optionally with up to two file attachments (see [Attachments](#attachments)). Prefer a single call with a list of cases over repeated single calls. |
+| `add_test_run_results` | `POST` | `test-run-result/bulk` | Records one status against one or many cases in a run, optionally with up to two file attachments (see [Attachments](#attachments)). Pass `project` to resolve a run key or name inside that project instead of tenant-wide. Prefer a single call with a list of cases over repeated single calls. |
 | `get_test_run_results` | `GET` | `test-run/<id>/results` | Fetches the cases in a run with their latest result, filterable by status and by `test_cases`. Pass `status='FAILED'` for a confirmation-test worklist. One page of 100 rows by default; `fetch_all_pages=True` walks every page. Each row's nested test case is trimmed to its ID, key, name and this run's result by default; `trim_response=False` keeps the full object, including its whole result history. Takes the run's ID, not its key. |
 | `bulk_export_test_runs` | `GET` | `test-run/bulk-export` | Exports a project's test runs with their test cases and the latest result per case, in one call. Filterable by run IDs, status, completion status and assignee. Always narrow it with `filter_ids` or another filter when cases are included: a project's runs with all their cases run to tens of megabytes, so nested cases are trimmed by default (`trim_response=False` keeps them whole) and a response over the MCP size limit is replaced by an error naming the arguments that narrow it. `filter_exclude_test_cases=True` returns runs only. Run IDs are the UUIDs the API returns, not the R-numbered keys. |
 | `get_test_run_timeline` | `GET` | `test-run/<id>/results`, `test-run/<id>` | Reports when testing in a run actually started and finished, derived from each case's `resultHistory`: first and last execution, span in minutes, distinct days with activity, an optional per-day breakdown and the cases never executed. Walks every results page, so it costs one call per 100 cases. Takes the run's ID, not its key. |
@@ -34,10 +34,13 @@ Result status keys such as `PASSED` and `FAILED` are configured per tenant, so u
 the keys defined in your own account.
 
 `add_test_run_results` matches a test run given by key or name across the whole
-tenant, not within one project. When several projects have a run with the same key,
-for example `R-1`, Tuskr rejects the call with `Multiple test runs found matching:
-R-1` and records nothing. Pass the run's UUID instead; `list_test_runs` returns it
-for a given project.
+tenant by default, not within one project. When several projects have a run with
+the same key, for example `R-1`, Tuskr rejects the call with `Multiple test runs
+found matching: R-1` and records nothing. Pass `project` (the project ID) to look
+the run up inside that project first: the key is matched exactly, ignoring case,
+then the name is matched exactly, and the call fails without recording anything
+when no run or several runs match. Passing the run's UUID also avoids the
+ambiguity and skips the lookup; `list_test_runs` returns it for a given project.
 
 Tuskr rate-limits every plan at 10 requests/second. The bulk tools exist for that
 reason: batch where the endpoint allows it.

@@ -5,6 +5,7 @@ from fastmcp import Context
 import tuskr_client
 from tuskr_mcp import credentials
 from tuskr_mcp.attachments import load_attachments
+from tuskr_mcp.run_lookup import resolve_test_run
 from tuskr_mcp.server import mcp
 
 
@@ -19,6 +20,7 @@ async def add_test_run_results(
     time_spent_in_minutes: int | None = None,
     custom_fields: dict | None = None,
     attachments: list[str] | None = None,
+    project: str | None = None,
 ):
     """
     Records a result against one or more test cases in a test run.
@@ -30,12 +32,13 @@ async def add_test_run_results(
     at 10 requests/second.
 
     Args:
-        test_run: ID, key or name of the test run. Keys and names are matched
-            across the whole tenant, not within one project. If several
-            projects have a run with the same key or name (for example
-            'R-1'), Tuskr rejects the call with 'Multiple test runs found'
-            and records nothing. Pass the run's UUID to avoid the ambiguity;
-            list_test_runs returns it for a given project.
+        test_run: ID, key or name of the test run. Without `project`, keys and
+            names are matched across the whole tenant, not within one project.
+            If several projects have a run with the same key or name (for
+            example 'R-1'), Tuskr rejects the call with 'Multiple test runs
+            found' and records nothing. Pass `project`, or the run's UUID, to
+            avoid the ambiguity; list_test_runs returns the UUID for a given
+            project.
         status: result status key, e.g. 'PASSED', 'FAILED', 'RETEST'. Status
             keys are configured per tenant, so use the keys defined in your
             own Tuskr account.
@@ -53,6 +56,12 @@ async def add_test_run_results(
             Requires the server to run on the machine that holds the files and
             TUSKR_ATTACHMENT_DIR to be set; relative paths resolve against that
             directory and files outside it are rejected.
+        project: ID of the project that contains the test run. When set and
+            `test_run` is a key or name, the run is looked up inside this
+            project first (exact key, case-insensitive, then exact name) and
+            the call fails without recording anything if no run or several
+            runs match. A UUID in `test_run` is used as is. Test case keys
+            are not affected: they resolve inside the run. Not sent to Tuskr.
     """
     if isinstance(test_cases, str):
         test_cases = [test_cases]
@@ -81,6 +90,12 @@ async def add_test_run_results(
     files = load_attachments(attachments) if attachments else None
 
     tenant_id, access_token = await credentials.resolve(ctx)
+
+    # Resolve the run inside its project and send the UUID. `project` stays out
+    # of the request body: the bulk endpoint does not document it, so a silently
+    # ignored field would bring the tenant-wide ambiguity back without an error.
+    if project:
+        body["testRun"] = resolve_test_run(test_run, project, tenant_id, access_token)
 
     # Only pass `files` when there are attachments, so the plain JSON call keeps
     # exactly the shape it had before attachment support.
