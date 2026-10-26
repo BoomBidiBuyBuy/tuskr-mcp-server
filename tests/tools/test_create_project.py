@@ -91,9 +91,7 @@ class TestCreateProject:
             {"tester@example.com": None},
         ],
     )
-    def test_blank_team_entries_are_rejected_before_any_request(
-        self, env, send, team
-    ):
+    def test_blank_team_entries_are_rejected_before_any_request(self, env, send, team):
         with pytest.raises(ValueError, match="team"):
             _create(FakeContext(), name="Sandbox", team=team)
 
