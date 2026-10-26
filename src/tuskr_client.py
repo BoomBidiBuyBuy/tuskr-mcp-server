@@ -11,6 +11,7 @@ class RequestMethod(StrEnum):
     GET = "get"
     POST = "post"
     PUT = "put"
+    DELETE = "delete"
 
 
 TUSKR_BASE_URL = "https://api.tuskr.live/api/tenant/"
@@ -66,8 +67,8 @@ def send(
 ):
     """Sends a request to the Tuskr endpoint.
 
-    `body` is the request payload: the JSON object sent under `data` for POST
-    and PUT, or the query parameters for GET.
+    `body` is the request payload: the JSON object sent under `data` for POST,
+    PUT and DELETE, or the query parameters for GET.
 
     The access token is taken from `ext_access_token` (typically the caller's
     Bearer header) and falls back to the TUSKR_ACCESS_TOKEN environment
@@ -79,7 +80,7 @@ def send(
 
     `top_level` adds keys next to `data` in the JSON envelope, for endpoints
     that expect a sibling of `data` such as a record `id`. It is only valid for
-    the JSON methods (POST and PUT) and cannot carry its own `data` key.
+    the JSON methods (POST, PUT and DELETE) and cannot carry its own `data` key.
     """
 
     if files and method != RequestMethod.POST:
@@ -87,7 +88,9 @@ def send(
 
     if top_level:
         if method == RequestMethod.GET:
-            raise ValueError("top_level can only be sent with a POST or PUT request.")
+            raise ValueError(
+                "top_level can only be sent with a POST, PUT or DELETE request."
+            )
         if files:
             raise ValueError("top_level cannot be combined with attachments.")
         if "data" in top_level:
@@ -136,13 +139,15 @@ def send(
             files=[("attachment", file) for file in files],
             timeout=REQUEST_TIMEOUT,
         )
-    elif method in (RequestMethod.POST, RequestMethod.PUT):
-        # Tuskr's REST API expects POST and PUT bodies as JSON wrapped in a
-        # top-level "data" key (see https://tuskr.app/kb/latest/api). Setting
-        # the Content-Type header and using requests' json= keyword handles
-        # both. `top_level` keys sit beside "data", which is where Tuskr wants
-        # the record id on a PUT.
-        send_json = requests.post if method == RequestMethod.POST else requests.put
+    elif method in (RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE):
+        # Tuskr's REST API expects POST, PUT and DELETE bodies as JSON wrapped
+        # in a top-level "data" key (see https://tuskr.app/kb/latest/api).
+        # Setting the Content-Type header and using requests' json= keyword
+        # handles both. `top_level` keys sit beside "data", which is where
+        # Tuskr wants the record id on a PUT. The requests function is looked
+        # up at call time (its name matches the method value) so tests that
+        # patch requests.post, requests.put or requests.delete still apply.
+        send_json = getattr(requests, method.value)
         response = send_json(
             url,
             headers={**headers, "Content-Type": "application/json"},

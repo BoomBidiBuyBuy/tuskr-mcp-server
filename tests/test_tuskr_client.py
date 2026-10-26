@@ -198,7 +198,7 @@ class TestSendPutAndTopLevel:
         assert requests.post.call_args[1]["json"] == {"data": {"a": 1}}
 
     def test_top_level_with_get_raises(self):
-        with pytest.raises(ValueError, match="POST or PUT"):
+        with pytest.raises(ValueError, match="POST, PUT or DELETE"):
             tuskr_client.send(
                 "action",
                 {},
@@ -231,6 +231,51 @@ class TestSendPutAndTopLevel:
                 "action",
                 {},
                 tuskr_client.RequestMethod.PUT,
+                files=[("a.txt", b"x", "text/plain")],
+            )
+
+
+class TestSendDelete:
+    """Cover the DELETE method, which carries a JSON body like POST and PUT."""
+
+    @pytest.fixture(autouse=True)
+    def _env(self, monkeypatch):
+        monkeypatch.delenv("TUSKR_ACCOUNT_ID", raising=False)
+        monkeypatch.delenv("TUSKR_BASE_URL", raising=False)
+        monkeypatch.setenv("TUSKR_TENANT_ID", "12345")
+        monkeypatch.setenv("TUSKR_ACCESS_TOKEN", "abcdef")
+
+    def test_delete_sends_the_wrapped_body_with_requests_delete(self, mocker):
+        mock_response = mocker.Mock()
+        mock_response.text = "3"
+        mocker.patch("requests.delete", return_value=mock_response)
+        mocker.patch("requests.post")
+        mocker.patch("requests.get")
+
+        result = tuskr_client.send(
+            "test-run/bulk", {"projects": ["p"]}, tuskr_client.RequestMethod.DELETE
+        )
+
+        assert result == "3"
+        expected_url = urljoin(tuskr_client.TUSKR_BASE_URL, "12345")
+        requests.delete.assert_called_once_with(
+            f"{expected_url}/test-run/bulk",
+            headers={
+                "Authorization": "Bearer abcdef",
+                "Content-Type": "application/json",
+            },
+            json={"data": {"projects": ["p"]}},
+            timeout=tuskr_client.REQUEST_TIMEOUT,
+        )
+        requests.post.assert_not_called()
+        requests.get.assert_not_called()
+
+    def test_files_with_delete_raise(self):
+        with pytest.raises(ValueError, match="only be sent with a POST"):
+            tuskr_client.send(
+                "action",
+                {},
+                tuskr_client.RequestMethod.DELETE,
                 files=[("a.txt", b"x", "text/plain")],
             )
 
