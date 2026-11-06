@@ -1,3 +1,5 @@
+import json
+
 import tuskr_client
 from tests.helpers import FakeContext, call_tool
 from tuskr_mcp.tools import list_test_cases as module
@@ -232,3 +234,138 @@ class TestListTestCasesCustomFieldFilter:
         params = send.call_args[0][1]
         assert params["filter[customFields][retry_count]"] == 1
         assert params["filter[customFields][defect_count]"] == 0
+
+
+def _case_row(**overrides):
+    """One test case row in the shape Tuskr returns, bulky fields included."""
+    row = {
+        "id": "case-id-1",
+        "key": "C-1",
+        "keySequence": 1,
+        "name": "Login request",
+        "estimatedTimeInMinutes": 5,
+        "customFields": {
+            "steps": [{"step": 1, "description": "<p>Do it</p>"}],
+            "review_state": {"id": "option-id-pending", "label": "Pending"},
+        },
+        "resultHistory": {
+            "2026-01-01T10:00:00": {"runId": "run-id-1", "status": "PASSED"},
+        },
+        "lastResultStatus": "PASSED",
+        "openIssueIds": ["ISSUE-1", "ISSUE-2"],
+        "projectId": "project-id-1",
+        "testSuiteId": "suite-id-1",
+        "testSuiteSectionId": "section-id-1",
+        "testCaseTypeId": "type-id-1",
+        "createdBy": {"id": "user-id-1", "fullName": "A User"},
+    }
+    row.update(overrides)
+    return row
+
+
+def _page(*rows):
+    """A list response with the sibling keys Tuskr sends beside rows."""
+    return json.dumps(
+        {
+            "rows": list(rows),
+            "count": len(rows),
+            "testCaseIds": [row["id"] for row in rows],
+            "meta": {"total": len(rows), "pages": 1},
+        }
+    )
+
+
+_TRIMMED_KEYS = {
+    "id",
+    "key",
+    "name",
+    "testSuiteId",
+    "testSuiteSectionId",
+    "testCaseTypeId",
+    "lastResultStatus",
+}
+
+
+class TestListTestCasesTrimming:
+    """Cover the default row trimming and the switches that relax it."""
+
+    def test_rows_are_trimmed_by_default(self, env, send):
+        """History, issue keys, custom fields and audit detail are dropped."""
+        send.return_value = _page(_case_row())
+
+        result = json.loads(_list_cases(FakeContext(), filter_project="7"))
+
+        (row,) = result["rows"]
+        assert set(row) == _TRIMMED_KEYS
+        assert row["key"] == "C-1"
+        assert row["testCaseTypeId"] == "type-id-1"
+
+    def test_sibling_keys_are_untouched(self, env, send):
+        """Only rows is trimmed; count, testCaseIds and meta pass through."""
+        raw = _page(_case_row(), _case_row(id="case-id-2", key="C-2"))
+        send.return_value = raw
+
+        result = json.loads(_list_cases(FakeContext(), filter_project="7"))
+        expected = json.loads(raw)
+
+        assert result["count"] == expected["count"]
+        assert result["testCaseIds"] == expected["testCaseIds"]
+        assert result["meta"] == expected["meta"]
+
+    def test_null_values_stay_null_and_missing_stay_missing(self, env, send):
+        """A case never executed keeps lastResultStatus null; nothing is invented."""
+        row = _case_row(lastResultStatus=None)
+        del row["testCaseTypeId"]
+        send.return_value = _page(row)
+
+        (trimmed,) = json.loads(_list_cases(FakeContext(), filter_project="7"))["rows"]
+
+        assert trimmed["lastResultStatus"] is None
+        assert "testCaseTypeId" not in trimmed
+
+    def test_include_custom_fields_keeps_them(self, env, send):
+        """Dropdown option IDs stay readable without the full row."""
+        send.return_value = _page(_case_row())
+
+        (row,) = json.loads(
+            _list_cases(FakeContext(), filter_project="7", include_custom_fields=True)
+        )["rows"]
+
+        assert set(row) == _TRIMMED_KEYS | {"customFields"}
+        assert row["customFields"]["review_state"]["id"] == "option-id-pending"
+
+    def test_trim_response_false_returns_raw_body(self, env, send):
+        """The untrimmed path hands back exactly what Tuskr sent."""
+        raw = _page(_case_row())
+        send.return_value = raw
+
+        assert (
+            _list_cases(FakeContext(), filter_project="7", trim_response=False) == raw
+        )
+
+    def test_include_custom_fields_has_no_effect_untrimmed(self, env, send):
+        """The full row already has customFields; nothing is removed or added."""
+        raw = _page(_case_row())
+        send.return_value = raw
+
+        result = _list_cases(
+            FakeContext(),
+            filter_project="7",
+            trim_response=False,
+            include_custom_fields=True,
+        )
+
+        assert result == raw
+
+    def test_error_body_is_returned_as_is(self, env, send):
+        """A non-JSON error stays readable rather than raising."""
+        send.return_value = "Unauthorized"
+
+        assert _list_cases(FakeContext(), filter_project="7") == "Unauthorized"
+
+    def test_json_without_rows_is_returned_as_is(self, env, send):
+        """A JSON error object has no rows to trim and is left alone."""
+        raw = json.dumps({"message": "Project not found"})
+        send.return_value = raw
+
+        assert _list_cases(FakeContext(), filter_project="7") == raw
